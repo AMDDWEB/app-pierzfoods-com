@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.allianceharshaadvertising.marketplacedev"
+    namespace "com.a2adv.pierzfoods"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.allianceharshaadvertising.marketplacedev"
+        applicationId "com.a2adv.pierzfoods"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "3.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
