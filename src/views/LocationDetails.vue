@@ -42,7 +42,7 @@
         <!-- Get Directions, Call Store, and Set as My Store buttons -->
         <ion-grid :fixed="true" class="ion-margin-top">
           <ion-row>
-            <ion-col>
+            <!-- <ion-col>
               <ion-button expand="block" size="small" @click="gotoStore">
                 <ion-icon slot="start" name="get-directions-regular"></ion-icon>
                 Directions
@@ -52,6 +52,11 @@
               <ion-button expand="block" size="small" @click="callStore">
                 <ion-icon slot="start" name="call-store-regular"></ion-icon>
                 Call Store
+              </ion-button> -->
+              <ion-col v-if="hasWeeklyAd">
+              <ion-button expand="block" size="small" @click="openWeeklyAd">
+                <ion-icon slot="start" name="ads-regular"></ion-icon>
+                Weekly Ad
               </ion-button>
             </ion-col>
             <ion-col>
@@ -88,13 +93,25 @@
         <!-- Weekly Ads and Rewards -->
         <ion-grid :fixed="true" class="ion-margin-top-large">
           <ion-row>
-            <ion-col v-if="hasWeeklyAd">
+            <!-- <ion-col v-if="hasWeeklyAd">
               <ion-button expand="block" size="small" @click="openWeeklyAd">
                 <ion-icon slot="start" name="ads-regular"></ion-icon>
                 Weekly Ad
               </ion-button>
+            </ion-col> -->
+            <ion-col>
+            <ion-button expand="block" size="small" @click="gotoStore">
+                <ion-icon slot="start" name="get-directions-regular"></ion-icon>
+                Directions
+              </ion-button>
             </ion-col>
-            <ion-col v-if="hasRewards">
+            <ion-col>
+              <ion-button expand="block" size="small" @click="callStore">
+                <ion-icon slot="start" name="call-store-regular"></ion-icon>
+                Call Store
+              </ion-button>
+            </ion-col>
+            <!-- <ion-col v-if="hasRewards">
               <ion-button expand="block" size="small" @click="openRewardsURL">
                 <ion-icon slot="start" name="rewards-regular"></ion-icon>
                 Rewards
@@ -104,8 +121,8 @@
               <ion-button expand="block" size="small" @click="openSale">
                 <ion-icon slot="start" name="sales-regular"></ion-icon>
                 Sale
-              </ion-button>
-            </ion-col>
+              </ion-button> 
+            </ion-col>-->
           </ion-row>
         </ion-grid>
       </div>
@@ -118,12 +135,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiLocations from '../axios/apiLocations';
 import { Share } from '@capacitor/share';
-import { IonPage, IonHeader, IonToolbar, IonContent, IonList, IonItem, IonLabel, IonBadge, IonIcon, IonSpinner, IonButton, IonButtons, IonTitle, IonGrid, IonRow, IonCol, alertController } from '@ionic/vue';
+import { useDateFormat } from '../composables/useDateFormat';
+import { IonPage, IonHeader, IonToolbar, IonContent, IonList, IonItem, IonLabel, IonBadge, IonIcon, IonAlert, IonSpinner, IonRefresher, IonRefresherContent, IonButton, IonButtons, IonTitle, IonGrid, IonRow, IonCol } from '@ionic/vue';
 import { Capacitor } from '@capacitor/core';
+import { alertController } from '@ionic/vue';
 import PdfViewerModal from '../components/PdfViewerModal.vue';
 import { useLocationDetails } from '@/composables/useLocationDetails';
 
@@ -134,9 +153,10 @@ const props = defineProps(['id']);
 const locationData = ref(null);
 const loading = ref(true);
 const storeHours = ref([]);
+const { formatTime } = useDateFormat();
 const { transformLocationData } = useLocationDetails();
 
-const getLocationStatus = () => {
+const getLocationStatus = (location) => {
   const now = new Date();
   const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
   const currentTime = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
@@ -214,19 +234,11 @@ const loadLocationData = async () => {
 onMounted(() => {
   loadLocationData();
   checkIfSelectedLocation();
-
-  // Listen for location changes from external components
-  window.addEventListener('locationChanged', handleLocationChanged);
 });
 
 watch(() => route.params.id, (newId) => {
   if (newId) {
-    // Close PDF modal when location changes
-    closePdfModal(false);
-    loadLocationData().then(() => {
-      // Check if this is the selected location after data is loaded
-      checkIfSelectedLocation();
-    });
+    loadLocationData();
   }
 });
 
@@ -288,20 +300,6 @@ const checkIfSelectedLocation = () => {
   }
 };
 
-// Handler for location changed event from external components
-const handleLocationChanged = (event) => {
-  if (event.detail && event.detail.id) {
-    // If the currently viewed location is the one that was selected
-    if (parseInt(props.id) === event.detail.id) {
-      isSelectedLocation.value = true;
-    } else {
-      isSelectedLocation.value = false;
-    }
-    // Refresh data to ensure we have the latest
-    loadLocationData();
-  }
-};
-
 const isPrimaryLocation = computed(() => {
   const storedLocation = JSON.parse(localStorage.getItem('selectedLocation') || '{}');
   return storedLocation.id === parseInt(props.id);
@@ -344,32 +342,17 @@ const setAsMyStore = async () => {
             handler: () => {
               loading.value = true;
 
-              // Save location data to local storage
               localStorage.setItem('selectedLocation', JSON.stringify(locationData.value));
-              // Set the store ID for coupons only if coupon_availability is true
-              if (locationData.value.coupon_availability === true) {
-                localStorage.setItem('storeId', locationData.value.coupon_id || null);
-              } else {
-                localStorage.removeItem('storeId');
-              }
               isSelectedLocation.value = true;
               isPrimaryLocation.value = true;
 
-              // Close PDF modal
-              closePdfModal(false);
-              
-              // Dispatch location changed event
               window.dispatchEvent(new CustomEvent('locationChanged', {
                 detail: locationData.value
               }));
-              
-              // Show loading indicator and refresh data
-              loading.value = true;
+
               setTimeout(() => {
-                loadLocationData().then(() => {
-                  loading.value = false;
-                });
-              }, 300);
+                location.reload();
+              }, 1000);
             }
           }
         ]
@@ -380,8 +363,30 @@ const setAsMyStore = async () => {
   }
 };
 
+const showPreferencesAlert = async () => {
+  const alert = await alertController.create({
+    header: 'My Store',
+    message: 'To set a new preferred store location, please visit the preferences page.',
+    buttons: [
+      {
+        text: 'Cancel',
+        role: 'cancel'
+      },
+      {
+        text: 'Preferences',
+        handler: () => {
+          router.push('/tabs/preferences');
+        }
+      }
+    ]
+  });
+
+  await alert.present();
+};
+
 const hasWeeklyAd = computed(() => !!locationData.value?.weekly_ad_url);
 const hasRewards = computed(() => !!locationData.value?.rewards_url);
+const hasWeeklyAdOrRewards = computed(() => hasWeeklyAd.value || hasRewards.value);
 const hasSale = computed(() => !!locationData.value?.sale_url);
 
 // Replace individual modal refs with a single state object
@@ -392,11 +397,11 @@ const pdfModalState = ref({
   startDate: ''
 });
 
-// Fix the openPdfModal function to use const for modalData
+// Replace individual open functions with a single function
 const openPdfModal = (type) => {
   if (!locationData.value) return;
 
-  const modalData = {
+  let modalData = {
     isOpen: true,
     url: '',
     type: '',
@@ -425,24 +430,20 @@ const openPdfModal = (type) => {
 };
 
 const closePdfModal = (isOpen) => {
-  // Reset modal state
-  pdfModalState.value = {
-    isOpen: false,
-    url: '',
-    type: '',
-    startDate: ''
-  };
+  if (!isOpen) {
+    pdfModalState.value = {
+      isOpen: false,
+      url: '',
+      type: '',
+      startDate: ''
+    };
+  }
 };
 
 // Update the click handlers
 const openWeeklyAd = () => openPdfModal('weekly');
 const openRewardsURL = () => openPdfModal('rewards');
 const openSale = () => openPdfModal('sale');
-
-// Clean up event listener when component is unmounted
-onUnmounted(() => {
-  window.removeEventListener('locationChanged', handleLocationChanged);
-});
 
 // Remove the old modal state refs
 // Remove: isWeeklyAdModalOpen, isRewardsModalOpen, isSaleModalOpen
