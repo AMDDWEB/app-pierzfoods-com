@@ -121,7 +121,15 @@ const formatExpDate = (date) => format(new Date(date), 'MM/dd/yyyy');
 const fetchCouponDetails = async () => {
   try {
     loading.value = true;
-    const response = await CouponsApi.getCouponById(props.id);
+    
+    // Get locationId for Midax system
+    const locationId = localStorage.getItem('storeId');
+    if (!locationId) {
+      throw new Error('No store ID found in localStorage');
+    }
+    
+    // Call the updated getCouponById with locationId and offerId
+    const response = await CouponsApi.getCouponById(locationId, props.id);
     
     // Fix: The API returns an array, so we need to get the first item
     let couponData = null;
@@ -137,6 +145,7 @@ const fetchCouponDetails = async () => {
       syncClippedCoupons([couponData]);
     }
   } catch (error) {
+    console.error('Error fetching coupon details:', error);
     // Handle error silently
   } finally {
     loading.value = false;
