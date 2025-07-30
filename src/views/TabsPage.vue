@@ -11,7 +11,7 @@
       <ion-icon name="locations-regular" />
       <ion-label>Locations</ion-label>
     </ion-tab-button>
-    <ion-tab-button v-if="(hasAppCardCoupons || hasMidaxCoupons) && (!hasMidaxCoupons || hasStoreId) && hasCoupons" tab="coupons" href="/tabs/coupons">
+    <ion-tab-button tab="coupons" href="/tabs/coupons">
       <ion-icon name="barcode-coupon-regular" />
       <ion-label>Coupons</ion-label>
     </ion-tab-button>
