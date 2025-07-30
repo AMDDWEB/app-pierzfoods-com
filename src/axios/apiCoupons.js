@@ -33,7 +33,7 @@ class CouponsApi {
         method: 'GET',
         params: { 
           location_id: locationId, 
-          card_number: localStorage.getItem('cardNumber')
+          card_number: 1234 
         }
       });
       
