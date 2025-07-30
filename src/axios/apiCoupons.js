@@ -8,6 +8,7 @@ class CouponsApi {
   constructor() {
     const base = axios.create({
       baseURL: import.meta.env.VITE_COUPONS_API,
+      withCredentials: false,
       headers: {
         'Content-type': 'application/json',
         'x-api-key': import.meta.env.VITE_COUPONS_API_KEY,
@@ -18,67 +19,133 @@ class CouponsApi {
   }
 
   async getCategories() {
-    const storeId = localStorage.getItem('storeId');
+    const hasMidaxCoupons = import.meta.env.VITE_HAS_MIDAX_COUPONS === "true";
     
-    if (!storeId) {
-      throw new Error('No store ID found in localStorage');
-    }
-
-    const response = await couponsInstance({
-      url: '/categories',
-      method: 'GET',
-      params: {
-        location_id: storeId
+    if (hasMidaxCoupons) {
+      const locationId = localStorage.getItem('storeId');
+      
+      if (!locationId) {
+        throw new Error('No store ID found in localStorage');
       }
-    });
-    
-    return response.data;
+      
+      const response = await couponsInstance({
+        url: '/categories',
+        method: 'GET',
+        params: { 
+          location_id: locationId, 
+          card_number: 1234 
+        }
+      });
+      
+      return response.data;
+    } else {
+      // For AppCard system
+      const response = await couponsInstance({
+        url: '/categories',
+        method: 'GET',
+        params: {
+          merchant_id: import.meta.env.VITE_COUPONS_MERCHANT_ID
+        }
+      });
+      
+      return response.data;
+    }
+  }
+
+  async getCouponById(locationId, offerId) {
+    const hasMidaxCoupons = import.meta.env.VITE_HAS_MIDAX_COUPONS === "true";
+
+    if (hasMidaxCoupons) {
+      // Use store_id for Midax system
+      if (!locationId) {
+        locationId = localStorage.getItem('storeId');
+        if (!locationId) {
+          throw new Error('Missing store ID for Midax system');
+        }
+      }
+      
+      return await couponsInstance({
+        url: '/offer-by-id',
+        method: 'GET',
+        params: {
+          location_id: locationId,
+          offer_id: offerId
+        }
+      });
+    } else {
+      // Use merchant_id for App Card system
+      return await couponsInstance({
+        url: '/get-offer-by-id',
+        method: 'GET',
+        params: {
+          merchant_id: import.meta.env.VITE_COUPONS_MERCHANT_ID,
+          offer_id: offerId
+        }
+      });
+    }
   }
 
   async getCoupons({
-    limit = 1000,
+    limit = 25,
     offset = 0,
     category = null,
     sortBy = 'expires'
   } = {}) {
     const hasMidaxCoupons = import.meta.env.VITE_HAS_MIDAX_COUPONS === "true";
-    const params = {
-      sort_by: 'expires'
-    };
-
+  
     if (hasMidaxCoupons) {
-      // For Midax system - always use batch loading with fixed limit
-      params.location_id = localStorage.getItem('storeId');
-      params.limit = '25'; // Fixed limit for Midax
-      params.offset = offset.toString();
-      
-      // Only add card number if authenticated - check both formats
-      const cardNumber = localStorage.getItem('CardNumber') || localStorage.getItem('cardNumber');
-      if (cardNumber) {
-        params.card_number = cardNumber;
+      // For Midax system
+      const locationId = localStorage.getItem('storeId');
+      if (!locationId) {
+        throw new Error('No store ID found in localStorage');
       }
+      
+      let params = {
+        offset,
+        limit,
+        location_id: locationId,
+        sort_by: sortBy
+      };
+      
+      if (category) {
+        params.category_id = category.Id;
+      }
+      
+      const response = await couponsInstance({
+        url: `/offers`,
+        method: 'GET',
+        params: params
+      });
+      
+      return {
+        ...response.data,
+        hasMidaxCoupons // Add this flag to response to handle pagination appropriately
+      };
     } else {
       // For AppCard system - load all at once
-      params.merchant_id = import.meta.env.VITE_COUPONS_MERCHANT_ID;
-      params.limit = limit.toString();
+      const params = {
+        merchant_id: import.meta.env.VITE_COUPONS_MERCHANT_ID,
+        limit: limit.toString(),
+        sort_by: sortBy
+      };
       
       // Only add refresh token if authenticated
       const refreshToken = TokenStorage.getRefreshToken();
       if (refreshToken) {
         params.refresh_token = refreshToken;
       }
-    }
-
-    const response = await couponsInstance({
-      url: '/offers',
-      method: 'GET',
-      params
-    });
-
-    return {
-      ...response.data,
-      hasMidaxCoupons // Add this flag to response to handle pagination appropriately
-    };
+      
+      const response = await couponsInstance({
+        url: '/offers',
+        method: 'GET',
+        params
+      });
+      
+      return {
+        ...response.data,
+        hasMidaxCoupons
+      };
+    } 
   }
 
   async startCouponSignup(phoneNumber) {
@@ -112,74 +179,35 @@ class CouponsApi {
 
     if (hasMidaxCoupons) {
       // Try both casing variants since there's inconsistency in the codebase
-      let cardNumber = localStorage.getItem('CardNumber');
       if (!cardNumber) {
-        cardNumber = localStorage.getItem('cardNumber');
+        cardNumber = localStorage.getItem('CardNumber');
+        if (!cardNumber) {
+          cardNumber = localStorage.getItem('cardNumber');
+        }
       }
-      const storeId = localStorage.getItem('storeId');
       
       console.log('Clipping coupon with card_number:', cardNumber);
       
-      if (!cardNumber || !storeId) {
+      if (!cardNumber) {
         throw new Error('Missing required Midax parameters');
       }
       
-      // First fetch the coupon details to get the provider
       try {
-        const couponResponse = await this.getCouponById(offerId);
-        let couponData = null;
-        
-        // Extract coupon data based on response structure
-        if (couponResponse.data && Array.isArray(couponResponse.data)) {
-          couponData = couponResponse.data[0];
-        } else if (couponResponse.data?.data && Array.isArray(couponResponse.data.data)) {
-          couponData = couponResponse.data.data[0];
-        }
-        
-        console.log('Coupon data for clip:', couponData);
-        
-        // Get provider from coupon data or default to "QUOT"
-        const provider = couponData?.provider || "QUOT";
-        console.log('Using provider:', provider, 'for coupon ID:', offerId);
-        
-        // For Midax, use the correct format with card_number as a parameter
-        const options = {
-          method: 'PUT',
-          url: '/clip-coupon',
-          params: {
-            card_number: cardNumber
-          },
-          data: JSON.stringify({
-            offer_id: offerId.toString(),
-            app_id: import.meta.env.VITE_APP_ID,
-            provider: provider
-          })
+        // For Midax, use the POST format
+        const coupon = {
+          offer_id: offerId.toString(),
+          app_id: import.meta.env.VITE_APP_ID,
+          provider: "QUOT" // Default provider
         };
-
-        const response = await couponsInstance.request(options);
-        return response.data;
-      } catch (error) {
-        console.error('Error clipping coupon:', error.response?.data);
-        this.showErrorDialog('This coupon is no longer available or has reached its maximum usage.');
-        throw error;
-      }
-    } else if (hasAppCardCoupons) {
-      // For AppCard system
-      const params = {
-        offer_id: offerId,
-        merchant_id: import.meta.env.VITE_COUPONS_MERCHANT_ID,
-        refresh_token: TokenStorage.getRefreshToken()
-      };
-
-      try {
+        
         const response = await couponsInstance({
-          url: '/clip-coupon',
-          method: 'PUT',
-          params
+          url: `/offer/${cardNumber}`,
+          method: 'POST',
+          data: coupon
         });
         return response.data;
       } catch (error) {
-        console.error(error);
+        console.error('Error clipping coupon:', error.response?.data);
         this.showErrorDialog('This coupon is no longer available or has reached its maximum usage.');
         throw error;
       }
@@ -190,7 +218,7 @@ class CouponsApi {
 
   async getCouponById(id) {
     const hasMidaxCoupons = import.meta.env.VITE_HAS_MIDAX_COUPONS === "true";
-
+    
     const params = {
       offer_id: id
     };
