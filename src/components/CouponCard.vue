@@ -26,7 +26,8 @@
 
 
   <!-- Coupon Modal -->
-  <ion-modal :is-open="showCouponModal" @didDismiss="closeCouponModal" :swipe-to-close="false" :backdropDismiss="true">
+  <ion-modal :is-open="showCouponModal" @didDismiss="closeCouponModal"
+    :initial-breakpoint="1" :breakpoints="[0, 1]" :swipe-to-close="true">
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="end">
@@ -95,6 +96,7 @@ const isClipping = ref(false);
 const showCouponModal = ref(false);
 const selectedSegment = ref('details');
 
+// Simplified modal: no presenting element to avoid layout issues when dragging
 
 const formatExpDate = (date) => format(new Date(date), 'MM/dd/yyyy');
 

@@ -1,5 +1,5 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="closeModal" :swipe-to-close="false" :breakpoints="[1]" :backdropDismiss="true">
+  <ion-modal :is-open="isOpen" @didDismiss="closeModal" :swipe-to-close="true" :backdropDismiss="true">
     <ion-header>
       <ion-toolbar>
         <ion-title>Select My Store</ion-title>

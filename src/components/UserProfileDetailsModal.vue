@@ -1,5 +1,6 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="$emit('update:isOpen', false)" :swipe-to-close="false" :backdropDismiss="false">
+  <ion-modal :is-open="isOpen" @didDismiss="$emit('update:isOpen', false)" :presenting-element="presentingElement"
+    :initial-breakpoint="1" :breakpoints="[0, 1]" :swipe-to-close="true" :backdropDismiss="false">
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="end">
