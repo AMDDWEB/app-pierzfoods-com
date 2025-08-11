@@ -1,23 +1,23 @@
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import CouponsApi from '@/axios/apiCoupons';
 
-// Initialize with stored coupons or empty array
-const storedCoupons = localStorage.getItem('clippedCoupons');
-const clippedCoupons = ref(new Set(storedCoupons ? JSON.parse(storedCoupons) : []));
+// Initialize with empty set - we'll load from API
+const clippedCoupons = ref(new Set());
 
-// State for error alert
+// State for loading and errors
+const isLoading = ref(false);
 const showErrorAlert = ref(false);
-const errorMessage = ref('This coupon is no longer available!');
+const errorMessage = ref('This coupon is no longer available or has reached its maximum usage.');
 
-// Persist changes to localStorage
-watch(() => Array.from(clippedCoupons.value), (newValue) => {
-  localStorage.setItem('clippedCoupons', JSON.stringify(newValue));
-}, { deep: true });
+// Track if we've loaded the initial data
+const hasLoadedInitial = ref(false);
 
 export function useClippedCoupons() {
   // Set up event listeners for coupon errors
   onMounted(() => {
     window.addEventListener('couponError', handleCouponError);
+    // Load clipped coupons when the component mounts
+    loadClippedCoupons();
   });
 
   onUnmounted(() => {
@@ -32,21 +32,83 @@ export function useClippedCoupons() {
   const closeErrorAlert = () => {
     showErrorAlert.value = false;
   };
-  const addClippedCoupon = (couponId) => {
+
+  // Load clipped coupons from the API
+  const loadClippedCoupons = async () => {
+    const currentStoreId = localStorage.getItem('storeId') || '201949';
+    const currentCardNumber = localStorage.getItem('CardNumber');
+    
+    if (!currentCardNumber?.trim() || !currentStoreId?.trim()) {
+      console.log('Missing required data for loading clipped coupons');
+      return false;
+    }
+
+    if (isLoading.value) {
+      console.log('Already loading clipped coupons');
+      return false;
+    }
+
+    isLoading.value = true;
+    
+    try {
+      const sortBy = 'expires';
+      const limit = 100;
+      const offset = 0;
+      
+      console.log('Loading clipped coupons with:', { 
+        cardNumber: currentCardNumber, 
+        offset, 
+        limit, 
+        sortBy, 
+        locationId: currentStoreId 
+      });
+      
+      const response = await CouponsApi.getClippedCoupons(
+        currentCardNumber,
+        offset,
+        limit,
+        sortBy,
+        currentStoreId
+      );
+      
+      if (response?.data?.items) {
+        // Update the clipped coupons set with the new data
+        const newClippedCoupons = new Set(response.data.items.map(item => item.id));
+        console.log('Loaded clipped coupons:', Array.from(newClippedCoupons));
+        clippedCoupons.value = newClippedCoupons;
+        hasLoadedInitial.value = true;
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error loading clipped coupons:', error);
+      showErrorAlert.value = true;
+      errorMessage.value = 'Failed to load your clipped coupons. Please try again.';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const addClippedCoupon = async (couponId) => {
     if (!clippedCoupons.value.has(couponId)) {
       // Create a new Set to trigger reactivity
       const newSet = new Set(Array.from(clippedCoupons.value));
       newSet.add(couponId);
       clippedCoupons.value = newSet;
+      
+      // No need to persist to localStorage anymore
     }
   };
 
-  const removeClippedCoupon = (couponId) => {
+  const removeClippedCoupon = async (couponId) => {
     if (clippedCoupons.value.has(couponId)) {
       // Create a new Set to trigger reactivity
       const newSet = new Set(Array.from(clippedCoupons.value));
       newSet.delete(couponId);
       clippedCoupons.value = newSet;
+      
+      // No need to persist to localStorage anymore
     }
   };
 
@@ -57,7 +119,9 @@ export function useClippedCoupons() {
   // Verify if a coupon is still valid by checking the API
   const verifyCouponValidity = async (couponId) => {
     try {
-      const response = await CouponsApi.getCouponById(couponId);
+      const locationId = localStorage.getItem('storeId') || '201949';
+      
+      const response = await CouponsApi.getCouponByID(locationId, couponId);
       // If we get a response with data, the coupon is still valid
       return !!(response?.data?.[0] || response?.data?.data?.[0]);
     } catch (error) {
@@ -109,6 +173,9 @@ export function useClippedCoupons() {
     isCouponClipped,
     syncClippedCoupons,
     cleanupExpiredCoupons,
+    loadClippedCoupons,
+    isLoading,
+    hasLoadedInitial,
     showErrorAlert,
     errorMessage,
     closeErrorAlert

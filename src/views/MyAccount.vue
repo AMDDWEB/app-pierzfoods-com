@@ -133,7 +133,7 @@ onMounted(async () => {
     try {
         if (import.meta.env.VITE_HAS_MIDAX_COUPONS === "true") {
             const currentToken = localStorage.getItem('access_token');
-            const storeId = localStorage.getItem('storeId');
+            const storeId = localStorage.getItem('storeId') || '201949';
             
             if (currentToken && storeId) {
                 const customerResponse = await CustomerApi.checkForExistingUser(currentToken, storeId);

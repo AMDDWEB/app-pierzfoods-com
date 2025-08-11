@@ -1,6 +1,5 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="$emit('update:isOpen', false)" :presenting-element="presentingElement"
-    :initial-breakpoint="1" :breakpoints="[0, 1]" :swipe-to-close="true" :backdropDismiss="false">
+  <ion-modal :is-open="isOpen" @didDismiss="$emit('update:isOpen', false)" :swipe-to-close="false" :backdropDismiss="false">
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="end">
@@ -115,7 +114,7 @@ const fetchUserProfile = async () => {
       }
 
       // Try to fetch fresh data in background (optional fallback)
-      const storeId = localStorage.getItem('storeId');
+      const storeId = localStorage.getItem('storeId') || '201949';
       if (storeId) {
         try {
           console.log('Fetching fresh data from API, StoreId:', storeId);

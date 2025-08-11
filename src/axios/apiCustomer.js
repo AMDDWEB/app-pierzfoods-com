@@ -40,8 +40,15 @@ class Customer {
     customer = base;
   }
 
-  async checkForExistingUser(storeId) {
+  async checkForExistingUser(arg1, arg2) {
+    // Accept both signatures: (storeId) or (token, storeId)
     const token = localStorage.getItem('accessToken');
+    // Prefer arg2 when provided (handles calls passing token first), else use arg1
+    let candidateStoreId = arg2 || arg1 || localStorage.getItem('storeId');
+    // Normalize to string and ensure numeric; otherwise, fallback to default
+    const effectiveStoreId = (candidateStoreId && /^\d+$/.test(String(candidateStoreId)))
+      ? String(candidateStoreId)
+      : '201949';
     return customer({
       url: '/check-user',
       method: 'GET',
@@ -49,7 +56,7 @@ class Customer {
         'Authorization': `Bearer ${token}`
       },
       params: {
-        location_id: storeId,
+        location_id: effectiveStoreId,
         app_id: import.meta.env.VITE_APP_ID
       }
     });

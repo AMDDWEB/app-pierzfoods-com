@@ -19,6 +19,7 @@ export function useCouponDetails() {
         loading.value = true;
       }
 
+      // Fallback to default store ID when not set
       const locationId = localStorage.getItem('storeId') || '201949';
 
       const response = await Coupons.getCoupons(
@@ -53,6 +54,7 @@ export function useCouponDetails() {
 
   const fetchCategories = async () => {
     try {
+      // Fallback to default store ID when not set
       const locationId = localStorage.getItem('storeId') || '201949';
       
       // Fetch categories from the API endpoint

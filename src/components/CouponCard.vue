@@ -26,8 +26,7 @@
 
 
   <!-- Coupon Modal -->
-  <ion-modal :is-open="showCouponModal" @didDismiss="closeCouponModal" :presenting-element="presentingElement"
-    :initial-breakpoint="1" :breakpoints="[0, 1]">
+  <ion-modal :is-open="showCouponModal" @didDismiss="closeCouponModal" :swipe-to-close="false" :backdropDismiss="true">
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="end">
@@ -66,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, computed, defineProps, defineEmits, onMounted } from 'vue';
+import { ref, computed, defineProps, defineEmits } from 'vue';
 import { format } from 'date-fns';
 import { IonCard, IonCardTitle, IonImg, IonIcon, IonButton, IonText, IonSpinner, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonSegment, IonSegmentButton, IonLabel } from '@ionic/vue';
 import { cut } from 'ionicons/icons';
@@ -88,7 +87,6 @@ const props = defineProps({
 const hasAppCardCoupons = ref(import.meta.env.VITE_HAS_APPCARD_COUPONS === "true");
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
 
-const presentingElement = ref(null);
 const emit = defineEmits(['click', 'clip', 'clipped']);
 const { openSignupModal, SignupModal } = useSignupModal();
 const { signIn, signOut } = useAuthModule();
@@ -97,10 +95,6 @@ const isClipping = ref(false);
 const showCouponModal = ref(false);
 const selectedSegment = ref('details');
 
-// Initialize presentingElement after component mounts
-onMounted(() => {
-  presentingElement.value = document.querySelector('ion-router-outlet');
-});
 
 const formatExpDate = (date) => format(new Date(date), 'MM/dd/yyyy');
 

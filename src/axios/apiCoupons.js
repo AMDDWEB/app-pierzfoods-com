@@ -38,11 +38,10 @@ class Coupons {
   }
 
   async getCoupons(limit, offset, locationId, sortBy, category) {
-    const effectiveLocationId = locationId || 201949;
     let params = {
       offset,
       limit,
-      location_id: effectiveLocationId,
+      location_id: locationId,
       sort_by: sortBy
     }
     if (category) params.category_id = category.Id

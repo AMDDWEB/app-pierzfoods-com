@@ -44,7 +44,7 @@ watch(isAuthenticated, async (newValue) => {
     const accessToken = await getAccessToken()
     localStorage.setItem('accessToken', accessToken)
     
-    const storeId = localStorage.getItem('storeId')
+    const storeId = localStorage.getItem('storeId') || '201949'
 
     try {
       const response = await Customer.checkForExistingUser(storeId)
@@ -76,7 +76,7 @@ watch(isAuthenticated, async (newValue) => {
 
 async function checkForExistingUser() {
   const accessToken = await getAccessToken()
-  const storeId = localStorage.getItem('storeId')
+  const storeId = localStorage.getItem('storeId') || '201949'
 
   // Validate store ID length and format
   if (!storeId || storeId.length > 6 || isNaN(storeId)) {

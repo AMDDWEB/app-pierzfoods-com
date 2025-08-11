@@ -16,7 +16,7 @@ export const TokenStorage = {
     
     // Get the current access token and storeId from localStorage
     const token = localStorage.getItem('access_token');
-    const storeId = localStorage.getItem('storeId');
+    const storeId = localStorage.getItem('storeId') || '201949';
     
     if (token && storeId) {
       try {

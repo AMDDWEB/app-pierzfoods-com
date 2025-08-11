@@ -63,7 +63,7 @@
           position-anchor="mainTabBar"
         />
 
-        <div class="coupon-container">
+        <div v-else-if="displayedCoupons.length > 0" class="coupon-container">
           <CouponCard
             v-for="coupon in displayedCoupons"
             :key="coupon.id"
