@@ -74,7 +74,7 @@ import { useRouter } from 'vue-router';
 import { useSignupModal } from '@/composables/useSignupModal';
 import { useAuthModule } from '@/composables/useAuth0Modal';
 import { useClippedCoupons } from '@/composables/useClippedCoupons';
-import CouponsApi from '@/axios/apiCoupons';
+import Coupons from '@/axios/apiCoupons';
 import { TokenStorage } from '@/utils/tokenStorage';
 
 const router = useRouter();
@@ -92,7 +92,7 @@ const presentingElement = ref(null);
 const emit = defineEmits(['click', 'clip', 'clipped']);
 const { openSignupModal, SignupModal } = useSignupModal();
 const { signIn, signOut } = useAuthModule();
-const { addClippedCoupon, isCouponClipped, showErrorAlert, closeErrorAlert } = useClippedCoupons();
+const { addClippedCoupon, isCouponClipped, showErrorAlert, closeErrorAlert, errorMessage } = useClippedCoupons();
 const isClipping = ref(false);
 const showCouponModal = ref(false);
 const selectedSegment = ref('details');
@@ -149,46 +149,43 @@ const handleClipClick = async (event) => {
 
   isClipping.value = true;
   try {
-    if (hasMidaxCoupons.value) {
-      // Check for both CardNumber and cardNumber
-      let cardNumber = localStorage.getItem('CardNumber') || localStorage.getItem('cardNumber');
-      if (!cardNumber) {
-        // Remove only relevant items, not storeId
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('CardNumber');
-        localStorage.removeItem('cardNumber');
-        // await signOut();
-        await signIn();
-        isClipping.value = false;
-        return;
-      }
+    // Check for both CardNumber and cardNumber
+    let cardNumber = localStorage.getItem('CardNumber') || localStorage.getItem('cardNumber');
+    if (!cardNumber) {
+      // Remove only relevant items, not storeId
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('CardNumber');
+      localStorage.removeItem('cardNumber');
+      // await signOut();
+      await signIn();
+      isClipping.value = false;
+      return;
+    }
 
-      // We have card number or access token, proceed with clipping
-      const response = await CouponsApi.clipCoupon(props.coupon.id);
-      if (response) {
-        addClippedCoupon(props.coupon.id);
-        emit('clipped', props.coupon);
-      }
-    } else {
-      // For AppCard system
-      if (!TokenStorage.hasTokens()) {
-        openSignupModal();
-        return;
-      }
-
-      try {
-        const response = await CouponsApi.clipCoupon(props.coupon.id);
-        // For AppCard, if we get here without an error, the clip was successful
-        addClippedCoupon(props.coupon.id);
-        emit('clipped', props.coupon);
-      } catch (error) {
-        console.error('Error clipping AppCard coupon:', error);
-        throw error; // Re-throw to be caught by outer catch
-      }
+    // We have card number, proceed with clipping
+    const couponData = {
+      offer_id: props.coupon.id.toString(),
+      app_id: import.meta.env.VITE_APP_ID,
+      provider: props.coupon.provider
+    };
+    
+    const response = await Coupons.clipCoupon(cardNumber, couponData);
+    if (response) {
+      addClippedCoupon(props.coupon.id);
+      emit('clipped', props.coupon);
     }
   } catch (error) {
     console.error('Error clipping coupon:', error);
+    if (error.isOfferUnavailable) {
+      // Show the error message from the API
+      showErrorAlert.value = true;
+      // The error message is already set in the API call
+    } else {
+      // For other errors, show a generic error
+      showErrorAlert.value = true;
+      errorMessage.value = 'Failed to clip coupon. Please try again.';
+    }
   } finally {
     isClipping.value = false;
   }

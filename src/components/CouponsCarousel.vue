@@ -1,6 +1,6 @@
 <template>
   <div class="ion-margin-bottom">
-    <ion-list lines="none" v-if="(!hasMidaxCoupons || hasStoreId) && displayCoupons.length > 0">
+    <ion-list lines="none">
       <ion-item @click="goToCouponsArchive">
         <ion-text>
           <h3 class="app-list-heading">
@@ -14,7 +14,6 @@
 
     <div v-if="!loading">
       <swiper 
-        v-if="(!hasMidaxCoupons || hasStoreId) && displayCoupons.length > 0" 
         @swiper="onSwiper" 
         :slides-per-view="2.5" 
         :space-between="1" 
@@ -24,13 +23,7 @@
           <CouponCard :coupon="coupon" @click="goToCouponDetails(coupon.id)" @clip="handleClipCoupon(coupon.id)" />
         </swiper-slide>
       </swiper>
-      <!-- <div v-else class="no-store-container">
-        <div class="no-store-card">
-          <div class="overlay"></div>
-          <h3>No Coupons Available</h3>
-          <p>Check back later for new deals.</p>
-        </div>
-      </div> -->
+      
     </div>
     <div v-else>
       <CouponsSkeleton :count="1" />
@@ -67,9 +60,9 @@ const {
   closeErrorAlert, 
   loadClippedCoupons 
 } = useClippedCoupons();
-const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
-const storeId = ref(localStorage.getItem('storeId'));
-const hasStoreId = computed(() => !!storeId.value);
+const hasMidaxCoupons = ref(true);
+const storeId = ref('201949');
+const hasStoreId = computed(() => true);
 
 // Only display up to the limit
 const displayCoupons = computed(() => coupons.value.slice(0, props.limit));
@@ -81,32 +74,26 @@ const onSwiper = (swiper) => {
 
 // Function to check if we should load coupons and clipped coupons
 const loadAllCoupons = async () => {
-  const currentStoreId = localStorage.getItem('storeId');
+  const currentStoreId = storeId.value || '201949';
   const currentCardNumber = localStorage.getItem('CardNumber');
   
-  if (currentStoreId) {
-    // Always refresh coupons when store changes
-    await fetchCoupons({ limit: props.limit, offset: 0 });
-    
-    // If user is logged in (has card number), load their clipped coupons
-    if (currentCardNumber) {
-      await loadClippedCoupons();
-    }
+  // Always refresh coupons using default location
+  await fetchCoupons({ limit: props.limit, offset: 0 });
+  
+  // If user is logged in (has card number), load their clipped coupons
+  if (currentCardNumber) {
+    await loadClippedCoupons();
   }
 };
 
 // Watch for location changes
-watch(() => localStorage.getItem('selectedLocation'), async (newLocation) => {
-  if (newLocation) {
-    storeId.value = localStorage.getItem('storeId');
-    await loadAllCoupons();
-  }
+watch(() => localStorage.getItem('selectedLocation'), async () => {
+  await loadAllCoupons();
 });
 
 // Watch for authentication changes
 watch(() => TokenStorage.hasTokens(), async (isAuthenticated) => {
   if (isAuthenticated) {
-    // When user logs in, reload everything
     await loadAllCoupons();
   }
 });
@@ -146,38 +133,16 @@ const goToCouponsArchive = () => {
 };
 
 // Handler function for location change events
-const handleLocationChanged = async (event) => {
-  // Update storeId ref when location changes
-  storeId.value = localStorage.getItem('storeId');
+const handleLocationChanged = async () => {
   await fetchCoupons({ limit: props.limit, offset: 0 });
 };
 
 // Handler for storage events
-const handleStorageChange = (event) => {
-  if (event.key === 'storeId' || event.key === 'selectedLocation') {
-    storeId.value = localStorage.getItem('storeId');
-  }
-};
+const handleStorageChange = () => {};
 
 onMounted(async () => {
-  // Initialize storeId from localStorage
-  storeId.value = localStorage.getItem('storeId');
-  
-
-  if (hasMidaxCoupons.value) {
-    // Only check for location if using Midax system
-    if (storeId.value) {
-    await loadAllCoupons();
-  }
-  } else {
-    // For AppCard, fetch coupons immediately
-    await loadAllCoupons();
-  }
-  
-  // Listen for location change events
+  await loadAllCoupons();
   window.addEventListener('locationChanged', handleLocationChanged);
-  
-  // Listen for storage events to catch direct localStorage changes
   window.addEventListener('storage', handleStorageChange);
 });
 
